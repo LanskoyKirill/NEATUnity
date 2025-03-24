@@ -7,13 +7,13 @@ using System;
 using System.Data;
 using UnityEditor;
 using Random = UnityEngine.Random;
-using JetBrains.Annotations;
 public class GameManager : MonoBehaviour
 {
     // Start is called before the first frame update
     public GameObject nn;
     public List<GameObject> AIs = new List<GameObject>();
     public float stopwatch = 0f;
+    public float checking = 11f;
     public int factorN = 0;
     //[NonSerialized] 
     public List<int> oInn = new List<int>();
@@ -23,6 +23,9 @@ public class GameManager : MonoBehaviour
     public List<float> numberClassAIs = new List<float>();
 
     public int population = 100;
+    public int selection = 6;
+
+    public int epoch = 0;
     void Start()
     {
         //creating population
@@ -31,18 +34,15 @@ public class GameManager : MonoBehaviour
             GameObject a = Instantiate(nn, new Vector3(b, transform.position.y, transform.position.z), Quaternion.identity);
             a.GetComponent<AI>().gm = gameObject;
             a.GetComponent<AI>().addition = 1;
-            //a.GetComponent<AI>().Conn = 10;
             AIs.Add(a);
         }
-        //AIs[0].GetComponent<AI>().Conn = 1;
-        //Time.timeScale = 5;
     }
 
     // Update is called once per frame
     void Update()
     {
         stopwatch += Time.deltaTime;
-        if(stopwatch >= 8){
+        if(stopwatch >= checking){
             AIs.Clear();
             AIs.AddRange(GameObject.FindGameObjectsWithTag("Player"));
             classAIs.Clear();
@@ -54,10 +54,11 @@ public class GameManager : MonoBehaviour
                     factorN = a.GetComponent<AI>().neurones.Count;
                 }
             }
-            List<GameObject> SortedList = new List<GameObject>(AIs.OrderByDescending(o=>o.GetComponent<AI>().layer + (o.transform.position.z * 0.0001)).ToList());
+            List<GameObject> SortedList = new List<GameObject>(AIs.OrderByDescending(o=>o.GetComponent<AI>().layer + o.transform.position.z * 0.001).ToList());
+            //List<GameObject> SortedList = new List<GameObject>(AIs.OrderByDescending(o=>o.transform.position.z).ToList());
             AIs.Clear();
-            List<GameObject> NewAIs = new List<GameObject>(SortedList.GetRange(0, 6));
-
+            List<GameObject> NewAIs = new List<GameObject>(SortedList.GetRange(0, selection));
+            //Debug.Log(SortedList[0].GetComponent<AI>().layer);
             //Speciation
             classAIs.Add(new List<GameObject>());
             classAIs[0].Add(SortedList[0]);
@@ -72,8 +73,8 @@ public class GameManager : MonoBehaviour
                     c.GetComponent<AI>().innovations.Sort();
                     int countInnov = c.GetComponent<AI>().innovations.Count - 1;
                     for(int j = 0; j < thisNN.GetComponent<AI>().innovations.Count; j++){
-                        if(i > countInnov){
-                            excess = excess + i - countInnov + 1;
+                        if(j > countInnov){
+                            excess += countInnov + 1;
                             break;
                         }
                         else{
@@ -83,7 +84,7 @@ public class GameManager : MonoBehaviour
                         }
                     }
                     fit = disjoint / factorN + excess / factorN + thisNN.GetComponent<AI>().AverageWeight();
-                    if(1 - fit < 0.8){
+                    if(1 - fit < 0.2){
                         try{
                             classAIs[i].Add(SortedList[k]);
                         }
@@ -92,6 +93,10 @@ public class GameManager : MonoBehaviour
                         }
                         break;
                     }
+                    /*else{
+                        classAIs.Add(new List<GameObject>());
+                        classAIs[classAIs.Count - 1].Add(SortedList[k]);
+                    }*/
                 }
             }
 
@@ -103,12 +108,10 @@ public class GameManager : MonoBehaviour
             
             //for(int i = 0; i < population; i++)
             {
-                for(int ii = 0; ii < population - 6; ii++){
+                for(int ii = 0; ii < population - selection; ii++){
                     int FirstInd = Random.Range(0, classAIs.Count);
                     GameObject offspring = classAIs[FirstInd][Random.Range(0, classAIs[FirstInd].Count)];
                     GameObject c = classAIs[FirstInd][Random.Range(0, classAIs[FirstInd].Count)];
-                    //offspring.GetComponent<AI>().Conn = SortedList[FirstInd].GetComponent<AI>().Conn;
-                    //b.GetComponent<AI>().Conn.Add(6);
 
                     //Random inheritance of weights
                     if(offspring.GetComponent<AI>().innovations.Any()){
@@ -157,38 +160,38 @@ public class GameManager : MonoBehaviour
                     }
                     for(int ie = 0; ie < offspring.GetComponent<AI>().weights.Count; ie++){
                         if(Random.Range(0, 5) < 4){
-                            offspring.GetComponent<AI>().weights[ie] = offspring.GetComponent<AI>().weights[ie] * Random.Range(-1.5f, 1.5f);
+                            offspring.GetComponent<AI>().weights[ie] += Random.Range(-0.5f, 0.5f);
                         }
                     }
                     NewAIs.Add(offspring);
                     /*GameObject a = (GameObject) Instantiate(NewAIs[ii], new Vector3(b, transform.position.y, transform.position.z), Quaternion.identity);
-                    a.GetComponent<AI>().Adder();
-                    //a.name = "nn";*/
-                    //float b = transform.position.x * Random.Range(0.9f, 1.1f);
-                    float b = transform.position.x;
+                    a.GetComponent<AI>().Adder();*/
+                    float b = transform.position.x * Random.Range(0.9f, 1.1f);
+                    //float b = transform.position.x;
                     var a = Instantiate(NewAIs[ii], new Vector3(b, transform.position.y, transform.position.z), Quaternion.identity);
                     a.name = "nn";
-                    //Debug.Log("here");
                 }
             }
             Debug.Log(copyAI.Count);
             foreach(var a in copyAI){
                 Destroy(a);
             }
-            /*foreach(var f in AIs){
-                f.GetComponent<AI>().enabled = true;
-            }*/
+            ++epoch;
+            //checking += 0.08f;
         }
     }
     public int DealInnovations(int inoV, int outV, bool rnnV){
         {
             for(int i = 0; i < iInn.Count; i++){
-                if(iInn[i] == inoV){
+                /*if(iInn[i] == inoV){
                     if(oInn[i] == outV){
                         if(RNN[i] == rnnV){
                             return i;
                         }
                     } 
+                }*/
+                if (iInn[i] == inoV && oInn[i] == outV && RNN[i] == rnnV){
+                    return i;
                 }
             }
         }
@@ -198,4 +201,3 @@ public class GameManager : MonoBehaviour
         return iInn.Count - 1;
     }
 }
-
