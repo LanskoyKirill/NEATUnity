@@ -21,6 +21,9 @@ public class AI : MonoBehaviour
     public float speed = 0.01f;
     public int recursionAddLink = 0;
 
+    public int prevNumber = 0;
+    public int thisNumber = 0;
+
     public List<float> neurones = new List<float> {1, 0, 0, 0, 0};
     public List<int> inpInnov = new List<int>();
     public List<int> outInnov = new List<int>();
@@ -42,13 +45,14 @@ public class AI : MonoBehaviour
         //addition = 2;
         Adder();
         aim1 = GameObject.FindGameObjectWithTag("Finish");
+        prevNumber = 0;
     }
     void Update()
     {
         //get inputs
-        if(!inpInnov.Any()){
+        /*if(!inpInnov.Any()){
             Destroy(gameObject);
-        }
+        }*/
         if(order[0] == 4){
             gameObject.transform.position = new Vector3(0, 0, -40);
         }
@@ -82,48 +86,62 @@ public class AI : MonoBehaviour
                 }
             }
             Debug.DrawLine(ray.origin, hit.point, Color.red);
-        }
+
+            //Check reccurency
+            //prevNumber = thisNumber;
+            //thisNumber = UnityEngine.Random.Range(0, 101);
+            //neurones[2] = thisNumber;
         //Thinking
-        string str = "";
-        for(int i = 0; i < order.Count; i++){
-            int thisNeuron = order[i];
-            if(thisNeuron > 4){
-                neurones[thisNeuron] = (float)System.Math.Tanh(neurones[thisNeuron]);
-            }
-            try{
-                foreach(var b in adjList[thisNeuron]){
-                    neurones[b.Key] += b.Value * neurones[thisNeuron];
+            for(int i = 0; i < order.Count; i++){
+                int thisNeuron = order[i];
+                if(thisNeuron > 4){
+                    neurones[thisNeuron] = (float)System.Math.Tanh(neurones[thisNeuron]);
+                }
+                try{
+                    foreach(var b in adjList[thisNeuron]){
+                        neurones[b.Key] += b.Value * neurones[thisNeuron];
+                    }
+                }
+                catch{
+                    Debug.Log(neurones.Count + "  " + adjList.Count);
                 }
             }
-            catch{
-                Debug.Log(neurones.Count + "  " + adjList.Count);
+            /*if (neurones[4] - (int)prevNumber == 0){
+                //layer += 1;
+            }*/
+            /*if(Conn == 1){
+                Debug.Log(str);
+                Debug.Log(abc1);
+                Debug.Log(abc);
+                Debug.Log(abc2);
+                Debug.Log(neurones[1] + " "+ neurones[2] + " "+ neurones[4]);
+            }*/
+            if(neurones[4] < -0.5f)
+            {
+                gameObject.transform.Rotate(0, -1, 0);
             }
-        }
-        foreach(float a in neurones){
-            str += a + " ";
-        }
-        /*if(Conn == 1){
-            Debug.Log(str);
-            Debug.Log(abc1);
-            Debug.Log(abc);
-            Debug.Log(abc2);
-            Debug.Log(neurones[1] + " "+ neurones[2] + " "+ neurones[4]);
-        }*/
-        if(neurones[4] < -0.5f)
-        {
-            gameObject.transform.Rotate(0, -1, 0);
-        }
-        if(neurones[4] >= 0.5f)
-        {
-            gameObject.transform.Rotate(0, 1, 0);
-        }
-        else
-        {
-            gameObject.transform.Rotate(0, 0, 0);
-        }
-        //neurones[4] = 0;
-        for(int i = 0; i < order.Count; i++){
-            neurones[i] = RNNneurones[i];
+            else if(neurones[4] >= 0.5f)
+            {
+                gameObject.transform.Rotate(0, 1, 0);
+            }
+            else
+            {
+                gameObject.transform.Rotate(0, 0, 0);
+            }
+            for(int i = 0; i < inpInnov.Count; i++){
+                if(actConnect[i] == true && RNNs[i] == true){
+                    RNNneurones[outInnov[i]] += neurones[inpInnov[i]] * weights[i];
+                }
+            }
+            //neurones[4] = 0;
+            /*for(int i = 0; i < order.Count; i++){
+                neurones[i] = RNNneurones[i];
+                RNNneurones[i] = 0;
+            }*/
+            for(int i = 0; i < RNNneurones.Count; i++){
+                neurones[i] = RNNneurones[i];
+                RNNneurones[i] = 0;
+            }
         }
     }
     private void OnTriggerEnter(Collider other){
@@ -136,11 +154,13 @@ public class AI : MonoBehaviour
     }
     public void AddNode(){
         int ind = UnityEngine.Random.Range(0, outInnov.Count);
-        while(true){
+        int reccurency = 0;
+        while(reccurency < 5){
             if(RNNs[ind] == false){
                 break;
             }
             ind = UnityEngine.Random.Range(0, outInnov.Count);
+            ++reccurency;
         }
         neurones.Add(0);
         adjList.Add(new Dictionary<int, float>());
@@ -164,10 +184,10 @@ public class AI : MonoBehaviour
     }
     public void AddLink(){
         int reccurency = 0;
+        bool errorInOut = false;
         weights.Add(UnityEngine.Random.Range(-3f, 3f));
-        //UnityEngine.Random.InitState((int)DateTime.Now.Ticks);
-        inpInnov.Add(UnityEngine.Random.Range(1, neurones.Count));
-        int probableOut = UnityEngine.Random.Range(4, neurones.Count);
+        inpInnov.Add(UnityEngine.Random.Range(0, neurones.Count));
+        int probableOut = 0;
         List<int> TakenConnections = new List<int>();
         for(int i = 0; i < outInnov.Count; i++){
             if(inpInnov[i] == inpInnov[inpInnov.Count - 1]){
@@ -175,32 +195,31 @@ public class AI : MonoBehaviour
             }
         }
         while(true){
+            probableOut = UnityEngine.Random.Range(4, neurones.Count);
             foreach(var a in TakenConnections){
                 if(a == probableOut || probableOut == inpInnov[inpInnov.Count - 1]){
-                    ++reccurency;
                     break;
                 }
             }
             
-            probableOut = UnityEngine.Random.Range(4, neurones.Count);
-            if(reccurency > 9){
-                reccurency = 1;
+            if(reccurency > 3){
+                errorInOut = true;
+                reccurency = 0;
                 break;
             }
-            else{
-                break;
-            }
+            ++reccurency;
         }
         outInnov.Add(probableOut);
         RNNs.Add(false);
         actConnect.Add(true);
-        if(GenToPh()[0] == 4 || reccurency == 1 || GenToPh().Last() != 4){
+        if(GenToPh()[0] == 4 || errorInOut == true || GenToPh().Last() != 4){
+            makeOrder();
             //UnityEngine.Random.Range(0, 10) < 3
             //transform.position = new Vector3(transform.position.x, transform.position.y, -1500);
             //Debug.Log(RNNs.Count + " RNNs");
-            if(UnityEngine.Random.Range(0, 6) == -1 && reccurency == 0){
+            if(UnityEngine.Random.Range(0, 6) > 2 && reccurency == 0){
                 if (RNNs.Count > 0){
-                    RNNs[this.RNNs.Count - 1] = true;
+                    RNNs[RNNs.Count - 1] = true;
                 }
             }
             else{
@@ -213,12 +232,11 @@ public class AI : MonoBehaviour
                 //Destroy(gameObject);
                 makeOrder();
                 recursionAddLink++;
-                if(recursionAddLink < 7){
+                if(recursionAddLink < 3){
                     AddLink();
                     recursionAddLink = 0;
                 }
             }
-#pragma warning restore CS0164 // This label has not been referenced
         }
         else{
             innovations.Add(gm.GetComponent<GameManager>().DealInnovations(inpInnov[inpInnov.Count - 1], outInnov[inpInnov.Count - 1], RNNs[inpInnov.Count - 1]));
@@ -308,8 +326,7 @@ public class AI : MonoBehaviour
         //Debug.Log(str1);
         if(order1.Count != neurones.Count){
             //Debug.Log("Smaller: " + order1.Count + " " + neurones.Count);
-            order1 = new List<int>{4, 0};
-            return order1;
+            return new List<int>{4, 0};
         }
         else{
             //Debug.Log("normal");
@@ -317,7 +334,7 @@ public class AI : MonoBehaviour
         if(!order1.Any()){
             List<int> a = new List<int>
             {
-                -1
+                4, 0, 0
             };
             Debug.Log("Empty");
             return a;
@@ -333,19 +350,13 @@ public class AI : MonoBehaviour
         for(int i = 0; i < neurones.Count; i++){
             adjList.Add(new Dictionary<int, float>());
         }
-        /*adjList = new List<Dictionary<int, float>>
-        {
-            new Dictionary<int, float>(),
-            new Dictionary<int, float>(),
-            new Dictionary<int, float>(),
-            new Dictionary<int, float>(),
-            new Dictionary<int, float>()
-        };*/
-        if(addition == 1){
-            AddLink();
-        }
-        if(addition == 2){
-            AddNode();
+        if(inpInnov.Count < 20){
+            if(addition == 1){
+                AddLink();
+            }
+            if(addition == 2){
+                AddNode();
+            }
         }
         makeOrder();
         addition = 0;
@@ -357,6 +368,9 @@ public class AI : MonoBehaviour
             AvWeight += a;
         }
         AvWeight /= weights.Count;
+        if(AvWeight == 0){
+            return 1;
+        }
         return AvWeight;
     }
 }
